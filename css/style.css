@@ -1,0 +1,578 @@
+/* ========================================
+   Neiki's Markdown Editor — style.css
+   ======================================== */
+
+/* ---------- Reset & Base ---------- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --header-height: 50px;
+  --toolbar-height: 42px;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+
+  /* Light theme (default) */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f6f8fa;
+  --bg-header: #24292f;
+  --bg-toolbar: #f0f2f5;
+  --bg-editor: #ffffff;
+  --bg-preview: #ffffff;
+  --bg-divider: #d0d7de;
+  --bg-divider-hover: #0969da;
+  --text-primary: #1f2328;
+  --text-secondary: #656d76;
+  --text-header: #ffffff;
+  --border-color: #d0d7de;
+  --btn-hover: #e2e5e9;
+  --shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+
+[data-color-mode="dark"] {
+  --bg-primary: #0d1117;
+  --bg-secondary: #161b22;
+  --bg-header: #161b22;
+  --bg-toolbar: #1c2128;
+  --bg-editor: #0d1117;
+  --bg-preview: #0d1117;
+  --bg-divider: #30363d;
+  --bg-divider-hover: #58a6ff;
+  --text-primary: #e6edf3;
+  --text-secondary: #8b949e;
+  --text-header: #e6edf3;
+  --border-color: #30363d;
+  --btn-hover: #30363d;
+  --shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-sans);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background 0.2s, color 0.2s;
+}
+
+/* ---------- Header ---------- */
+#app-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  height: var(--header-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: var(--bg-header);
+  color: var(--text-header);
+  box-shadow: var(--shadow);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-icon {
+  color: #58a6ff;
+  flex-shrink: 0;
+}
+
+.logo-img {
+  display: block;
+}
+
+.app-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  white-space: nowrap;
+  color: #58A6FF;
+  font-family: "JetBrains Mono", monospace;
+  transform: translateY(2px);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-header);
+  font-size: 13px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.header-btn:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.header-btn.icon-only {
+  padding: 5px 8px;
+}
+
+.header-btn svg {
+  flex-shrink: 0;
+}
+
+/* Theme toggle icon visibility */
+[data-color-mode="light"] .icon-sun { display: none; }
+[data-color-mode="dark"] .icon-moon { display: none; }
+
+.github-btn {
+  background: rgba(255,255,255,0.08);
+}
+
+/* ---------- Toolbar ---------- */
+#toolbar {
+  position: fixed;
+  top: var(--header-height);
+  left: 0;
+  right: 0;
+  z-index: 99;
+  height: var(--toolbar-height);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 12px;
+  background: var(--bg-toolbar);
+  border-bottom: 1px solid var(--border-color);
+  overflow-x: auto;
+  overflow-y: hidden;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+#toolbar::-webkit-scrollbar {
+  height: 4px;
+}
+
+#toolbar::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 2px;
+}
+
+#toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 30px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+#toolbar button:hover {
+  background: var(--btn-hover);
+}
+
+#toolbar button svg {
+  flex-shrink: 0;
+}
+
+.toolbar-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border-color);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+/* ---------- Mobile Tab Switcher ---------- */
+#mobile-tabs {
+  display: none;
+  position: fixed;
+  top: calc(var(--header-height) + var(--toolbar-height));
+  left: 0;
+  right: 0;
+  z-index: 98;
+  height: 38px;
+  background: var(--bg-toolbar);
+  border-bottom: 1px solid var(--border-color);
+}
+
+#mobile-tabs .mobile-tab {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+#mobile-tabs .mobile-tab.active {
+  color: var(--text-primary);
+  border-bottom-color: #0969da;
+}
+
+[data-color-mode="dark"] #mobile-tabs .mobile-tab.active {
+  border-bottom-color: #58a6ff;
+}
+
+/* ---------- Split Container ---------- */
+#split-container {
+  position: fixed;
+  top: calc(var(--header-height) + var(--toolbar-height));
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.pane {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+#editor-pane {
+  flex: 1 1 50%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+#preview-pane {
+  flex: 1 1 50%;
+  min-width: 0;
+  overflow-y: auto;
+  background: var(--bg-preview);
+  transition: background 0.2s;
+}
+
+/* ---------- Editor ---------- */
+#editor {
+  width: 100%;
+  height: 100%;
+  padding: 20px;
+  border: none;
+  outline: none;
+  resize: none;
+  background: var(--bg-editor);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.6;
+  tab-size: 4;
+  -moz-tab-size: 4;
+  transition: background 0.2s, color 0.2s;
+}
+
+#editor::placeholder {
+  color: var(--text-secondary);
+}
+
+/* ---------- Preview ---------- */
+#preview {
+  padding: 24px 32px;
+  min-height: 100%;
+}
+
+#preview.markdown-body {
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* Override github-markdown-css background */
+[data-color-mode="light"] #preview.markdown-body {
+  background-color: #ffffff;
+  color: #1f2328;
+}
+
+[data-color-mode="dark"] #preview.markdown-body {
+  background-color: #0d1117;
+  color: #e6edf3;
+}
+
+/* Task list styling */
+#preview .task-list-item {
+  list-style: none;
+}
+
+#preview .task-list-item input[type="checkbox"] {
+  margin-right: 6px;
+}
+
+/* ---------- Divider ---------- */
+#divider {
+  width: 8px;
+  cursor: col-resize;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
+  flex-shrink: 0;
+  transition: background 0.2s, border-color 0.2s;
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Grab handle dots */
+#divider::before {
+  content: '';
+  width: 4px;
+  height: 28px;
+  border-radius: 2px;
+  background: var(--border-color);
+  transition: background 0.2s, height 0.2s;
+}
+
+#divider:hover,
+#divider.dragging {
+  background: var(--btn-hover);
+}
+
+#divider:hover::before,
+#divider.dragging::before {
+  background: var(--bg-divider-hover);
+  height: 36px;
+}
+
+/* ---------- Responsive (≤ 960px) ---------- */
+@media (max-width: 960px) {
+  .header-btn span {
+    display: none;
+  }
+
+  .header-btn {
+    padding: 5px 8px;
+    gap: 0;
+  }
+
+  .header-right {
+    gap: 6px;
+  }
+}
+
+/* ---------- Responsive (≤ 768px) ---------- */
+@media (max-width: 768px) {
+  #app-header {
+    padding: 0 10px;
+    height: 46px;
+  }
+
+  :root {
+    --header-height: 46px;
+  }
+
+  .header-left {
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .logo-icon {
+    width: 22px;
+    height: 22px;
+  }
+
+  .app-title {
+    font-size: 1.0rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .header-right {
+    gap: 4px;
+  }
+
+  .header-btn {
+    padding: 4px 6px;
+    border-radius: 5px;
+  }
+
+  .header-btn.icon-only {
+    padding: 4px 5px;
+  }
+
+  .header-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  #mobile-tabs {
+    display: flex;
+  }
+
+  #split-container {
+    top: calc(var(--header-height) + var(--toolbar-height) + 38px);
+    flex-direction: column;
+  }
+
+  #divider {
+    display: none;
+  }
+
+  #editor-pane,
+  #preview-pane {
+    flex: none;
+    width: 100% !important;
+    height: 100%;
+  }
+
+  /* Hide/show panes based on active tab */
+  #split-container.show-editor #editor-pane {
+    display: flex;
+  }
+  #split-container.show-editor #preview-pane {
+    display: none;
+  }
+  #split-container.show-preview #editor-pane {
+    display: none;
+  }
+  #split-container.show-preview #preview-pane {
+    display: flex;
+  }
+
+  #preview {
+    padding: 16px;
+  }
+}
+
+/* ---------- Responsive (≤ 480px) ---------- */
+@media (max-width: 480px) {
+  #app-header {
+    padding: 0 8px;
+    height: 42px;
+  }
+
+  :root {
+    --header-height: 42px;
+  }
+
+  .app-title {
+    font-size: 0.8rem;
+  }
+
+  .logo-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .header-right {
+    gap: 3px;
+  }
+
+  .header-btn {
+    padding: 3px 5px;
+    border-radius: 4px;
+    border-width: 0;
+    background: rgba(255,255,255,0.06);
+  }
+
+  .header-btn svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  /* Hide GitHub button text + border on very small screens */
+  .github-btn span {
+    display: none;
+  }
+
+  #toolbar {
+    padding: 0 8px;
+    gap: 1px;
+  }
+
+  #toolbar button {
+    min-width: 28px;
+    height: 28px;
+    padding: 0 5px;
+  }
+}
+
+/* ---------- Selection & Scrollbar ---------- */
+#editor::selection {
+  background: rgba(9, 105, 218, 0.3);
+}
+
+[data-color-mode="dark"] #editor::selection {
+  background: rgba(88, 166, 255, 0.3);
+}
+
+/* Shared scrollbar style for both panes */
+#preview-pane::-webkit-scrollbar,
+#editor-pane::-webkit-scrollbar,
+#editor::-webkit-scrollbar {
+  width: 8px;
+}
+
+#preview-pane::-webkit-scrollbar-track,
+#editor-pane::-webkit-scrollbar-track,
+#editor::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#preview-pane::-webkit-scrollbar-thumb,
+#editor-pane::-webkit-scrollbar-thumb,
+#editor::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+#preview-pane::-webkit-scrollbar-thumb:hover,
+#editor-pane::-webkit-scrollbar-thumb:hover,
+#editor::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Firefox scrollbar */
+#preview-pane,
+#editor-pane,
+#editor {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) transparent;
+}
+
+/* ---------- Utility ---------- */
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Code block overflow in preview */
+#preview pre {
+  overflow-x: auto;
+}
+
+#preview pre code {
+  font-family: var(--font-mono);
+  font-size: 13.6px;
+}
+
+/* Ensure images don't overflow */
+#preview img {
+  max-width: 100%;
+}
