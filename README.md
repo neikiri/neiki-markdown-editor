@@ -31,7 +31,7 @@
 
 ---
 
-**Live version:** [https://neiki.eu/markdown-editor](https://neiki.eu/markdown-editor)
+**Live version:** [https://neikiri.dev/markdown-editor](https://neikiri.dev/markdown-editor)
 
 ---
 
@@ -90,4 +90,4 @@ GitHub: https://github.com/neikiri
 
 ## 📬 Contact
 
-📧 Email: dev@neiki.eu
+📧 Email: neikiri@neikiri.dev
