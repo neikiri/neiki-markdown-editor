@@ -18,6 +18,227 @@
   const toolbar = document.getElementById('toolbar');
   const htmlEl = document.documentElement;
 
+  const btnCopy = document.getElementById('btn-copy');
+  const btnFullscreen = document.getElementById('btn-fullscreen');
+  const btnMore = document.getElementById('btn-more');
+  const moreDropdown = document.getElementById('more-dropdown');
+  const btnHelp = document.getElementById('btn-help');
+  const helpOverlay = document.getElementById('help-overlay');
+  const helpClose = document.getElementById('help-close');
+
+  const findPanel = document.getElementById('find-panel');
+  const findInput = document.getElementById('find-input');
+  const findCount = document.getElementById('find-count');
+  const findPrev = document.getElementById('find-prev');
+  const findNext = document.getElementById('find-next');
+  const findClose = document.getElementById('find-close');
+  const replaceInput = document.getElementById('replace-input');
+  const replaceOne = document.getElementById('replace-one');
+  const replaceAllBtn = document.getElementById('replace-all');
+
+  // ─── Custom JS/TS highlighter (Dracula-accurate) ───
+  // highlight.js never wraps punctuation in spans and can't tell a function
+  // declaration's parens from a call's, so it cannot reproduce the reference
+  // VS Code Dracula theme (which colors "(", ")", "{", "}", "=", "-", ":"
+  // contextually, and colors every reference to a parameter, not just its
+  // declaration). This is a small hand-rolled tokenizer + contextual pass
+  // built to match that reference exactly:
+  //  - "(" / ")" are pink for a function/method declaration's own parameter
+  //    list, cyan for a call (`this.calcAge()`), and left on the default
+  //    foreground for a `new X(...)` constructor call.
+  //  - "{" / "}" are pink for a function/method body or object literal, left
+  //    on the default foreground for a class body.
+  //  - "[" / "]" are cyan; ".", ",", ";" stay on the default foreground.
+  //  - every other single operator ("=", "-", ":", ...) is pink.
+  //  - a class name is cyan only right after `new`/`class`; any other
+  //    PascalCase `const`/`let`/`var` binding (e.g. `const Dracula = ...`) is
+  //    purple, since it holds an instance, not the class itself.
+  //  - a parameter name is orange everywhere it's referenced, not only at
+  //    its declaration.
+  //  - a getter/setter name (`get age()`) stays on the default foreground,
+  //    since only the function body's own name (constructor, calcAge, ...)
+  //    reads green.
+  const JS_LANGS = { javascript: 1, js: 1, jsx: 1, typescript: 1, ts: 1, tsx: 1 };
+
+  const JS_KEYWORDS = new Set([
+    'class', 'const', 'let', 'var', 'function', 'get', 'set', 'return', 'new',
+    'if', 'else', 'for', 'while', 'do', 'switch', 'case', 'break', 'continue',
+    'try', 'catch', 'finally', 'throw', 'typeof', 'instanceof', 'in', 'of',
+    'extends', 'static', 'public', 'private', 'protected', 'readonly',
+    'async', 'await', 'yield', 'import', 'export', 'default', 'from', 'as',
+    'void', 'delete', 'interface', 'type', 'enum', 'implements', 'namespace',
+    'constructor'
+  ]);
+  const JS_THIS_WORDS = new Set(['this', 'self', 'super']);
+  const JS_TOKEN_RE = /\/\/.*|\/\*[\s\S]*?\*\/|`(?:\\.|[^`\\])*`|'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|\b0[xX][0-9a-fA-F]+\b|\b\d+\.?\d*(?:[eE][+-]?\d+)?\b|[A-Za-z_$][A-Za-z0-9_$]*|=>|===|!==|==|!=|<=|>=|&&|\|\||\?\?|\.\.\.|[^\sA-Za-z0-9_$]/g;
+
+  function jsTokenize(code) {
+    const tokens = [];
+    let lastIndex = 0;
+    JS_TOKEN_RE.lastIndex = 0;
+    let m;
+    while ((m = JS_TOKEN_RE.exec(code))) {
+      if (m.index > lastIndex) tokens.push({ type: 'ws', value: code.slice(lastIndex, m.index) });
+      const v = m[0];
+      let type;
+      if (v.charAt(0) === '/' && (v.charAt(1) === '/' || v.charAt(1) === '*')) type = 'comment';
+      else if (v.charAt(0) === '`' || v.charAt(0) === "'" || v.charAt(0) === '"') type = 'string';
+      else if (/^[0-9]/.test(v)) type = 'number';
+      else if (/^[A-Za-z_$]/.test(v)) type = 'ident';
+      else type = 'punct';
+      tokens.push({ type: type, value: v });
+      lastIndex = JS_TOKEN_RE.lastIndex;
+    }
+    if (lastIndex < code.length) tokens.push({ type: 'ws', value: code.slice(lastIndex) });
+    return tokens;
+  }
+
+  function jsPrevSig(tokens, i) {
+    for (let k = i - 1; k >= 0; k--) if (tokens[k].type !== 'ws' && tokens[k].type !== 'comment') return k;
+    return -1;
+  }
+  function jsNextSig(tokens, i) {
+    for (let k = i + 1; k < tokens.length; k++) if (tokens[k].type !== 'ws' && tokens[k].type !== 'comment') return k;
+    return -1;
+  }
+
+  function highlightJsDracula(code) {
+    const tokens = jsTokenize(code);
+    const n = tokens.length;
+
+    // Match every bracket to its partner.
+    const partner = new Array(n).fill(-1);
+    const stack = [];
+    for (let i = 0; i < n; i++) {
+      const t = tokens[i];
+      if (t.type !== 'punct') continue;
+      if (t.value === '(' || t.value === '{' || t.value === '[') {
+        stack.push(i);
+      } else if (t.value === ')' || t.value === '}' || t.value === ']') {
+        const openIdx = stack.pop();
+        if (openIdx !== undefined) { partner[openIdx] = i; partner[i] = openIdx; }
+      }
+    }
+
+    // Assign a role to each bracket pair (based only on the opening bracket).
+    const role = new Array(n).fill(null);
+    for (let i = 0; i < n; i++) {
+      const t = tokens[i];
+      if (t.type !== 'punct' || partner[i] <= i) continue;
+      const j = partner[i];
+      const p = jsPrevSig(tokens, i);
+      let r;
+      if (t.value === '(') {
+        const pp = p >= 0 ? jsPrevSig(tokens, p) : -1;
+        const nx = jsNextSig(tokens, j);
+        if (p >= 0 && tokens[p].type === 'ident' && pp >= 0 && tokens[pp].value === 'new') {
+          r = 'new-call';
+        } else if (p >= 0 && tokens[p].type === 'ident' && pp >= 0 && tokens[pp].value === '.') {
+          r = 'method-call';
+        } else if (nx >= 0 && tokens[nx].value === '{') {
+          r = 'decl-params';
+        } else if (p >= 0 && tokens[p].type === 'ident') {
+          r = 'call';
+        } else {
+          r = 'control';
+        }
+      } else if (t.value === '{') {
+        const pp = p >= 0 ? jsPrevSig(tokens, p) : -1;
+        if (p >= 0 && tokens[p].type === 'ident' && pp >= 0 && tokens[pp].value === 'class') {
+          r = 'class-body';
+        } else if (p >= 0 && tokens[p].value === ')' && role[partner[p]] === 'decl-params') {
+          r = 'function-body';
+        } else if (p >= 0 && tokens[p].value === '(') {
+          r = 'object-literal';
+        } else {
+          r = 'block';
+        }
+      } else {
+        r = 'array';
+      }
+      role[i] = r;
+      role[j] = r;
+    }
+
+    // Collect parameter names from every declaration's parameter list, so
+    // every later reference to that name (not just the declaration) is
+    // recolored, matching the reference.
+    const paramNames = new Set();
+    for (let i = 0; i < n; i++) {
+      if (tokens[i].type !== 'punct' || tokens[i].value !== '(' || role[i] !== 'decl-params') continue;
+      const j = partner[i];
+      let depth = 0, expecting = true;
+      for (let k = i + 1; k < j; k++) {
+        const tk = tokens[k];
+        if (tk.type === 'ws' || tk.type === 'comment') continue;
+        if (tk.type === 'punct' && (tk.value === '(' || tk.value === '{' || tk.value === '[')) { depth++; continue; }
+        if (tk.type === 'punct' && (tk.value === ')' || tk.value === '}' || tk.value === ']')) { depth--; continue; }
+        if (depth !== 0) continue;
+        if (expecting && tk.type === 'ident') { paramNames.add(tk.value); expecting = false; continue; }
+        if (tk.type === 'punct' && tk.value === ',') { expecting = true; continue; }
+        if (tk.type === 'punct' && (tk.value === '=' || tk.value === ':')) { expecting = false; }
+      }
+    }
+
+    function span(cls, text) { return '<span class="' + cls + '">' + md.utils.escapeHtml(text) + '</span>'; }
+
+    let html = '';
+    for (let i = 0; i < n; i++) {
+      const t = tokens[i];
+      if (t.type === 'ws') { html += t.value; continue; }
+      if (t.type === 'comment') { html += span('hljs-comment', t.value); continue; }
+      if (t.type === 'string') { html += span('hljs-string', t.value); continue; }
+      if (t.type === 'number') { html += span('hljs-number', t.value); continue; }
+
+      if (t.type === 'ident') {
+        const v = t.value;
+        if (JS_KEYWORDS.has(v)) { html += span('hljs-keyword', v); continue; }
+        if (JS_THIS_WORDS.has(v)) { html += span('hljs-variable language_', v); continue; }
+
+        const p = jsPrevSig(tokens, i);
+        if (p >= 0 && tokens[p].type === 'ident' && (tokens[p].value === 'new' || tokens[p].value === 'class')) {
+          html += span('hljs-title class_', v); continue;
+        }
+        if (paramNames.has(v)) { html += span('hljs-params', v); continue; }
+
+        const nx = jsNextSig(tokens, i);
+        if (nx >= 0 && tokens[nx].type === 'punct' && tokens[nx].value === '(') {
+          const r = role[nx];
+          if (r === 'decl-params') {
+            const pv = p >= 0 ? tokens[p].value : null;
+            if (pv === 'get' || pv === 'set') { html += md.utils.escapeHtml(v); continue; }
+            html += span('hljs-title function_', v); continue;
+          }
+          if (r === 'call' || r === 'method-call') { html += span('hljs-title function_', v); continue; }
+        }
+        if (p >= 0 && tokens[p].type === 'punct' && tokens[p].value === '.') { html += md.utils.escapeHtml(v); continue; }
+        if (p >= 0 && tokens[p].type === 'ident' && (tokens[p].value === 'const' || tokens[p].value === 'let' || tokens[p].value === 'var') && /^[A-Z]/.test(v)) {
+          html += span('drc-instance', v); continue;
+        }
+        html += md.utils.escapeHtml(v);
+        continue;
+      }
+
+      // Punctuation
+      const v = t.value;
+      if (v === '(' || v === ')') {
+        const r = role[v === '(' ? i : partner[i]];
+        if (r === 'decl-params') { html += span('drc-punct-pink', v); continue; }
+        if (r === 'method-call' || r === 'call') { html += span('drc-punct-cyan', v); continue; }
+        html += md.utils.escapeHtml(v); continue;
+      }
+      if (v === '{' || v === '}') {
+        const r = role[v === '{' ? i : partner[i]];
+        if (r === 'class-body') { html += md.utils.escapeHtml(v); continue; }
+        html += span('drc-punct-pink', v); continue;
+      }
+      if (v === '[' || v === ']') { html += span('drc-punct-cyan', v); continue; }
+      if (v === '.' || v === ',' || v === ';') { html += md.utils.escapeHtml(v); continue; }
+      html += span('drc-punct-pink', v);
+    }
+    return html;
+  }
+
   // ─── Configure markdown-it ───
   const md = window.markdownit({
     html: true,
@@ -25,6 +246,9 @@
     typographer: false,
     breaks: true,
     highlight: function (str, lang) {
+      if (JS_LANGS[lang]) {
+        try { return '<pre class="hljs"><code>' + highlightJsDracula(str) + '</code></pre>'; } catch (_) {}
+      }
       if (lang && hljs.getLanguage(lang)) {
         try {
           return '<pre class="hljs"><code>' +
@@ -133,10 +357,23 @@
     scheduleRender();
   }
 
+  const specialActions = {
+    undo: function () { editor.focus(); document.execCommand('undo'); scheduleRender(); },
+    redo: function () { editor.focus(); document.execCommand('redo'); scheduleRender(); },
+    find: function () { openFindPanel(); },
+    copy: function () { copyMarkdown(); },
+    fullscreen: function () { toggleFullscreen(); }
+  };
+
   toolbar.addEventListener('click', function (e) {
     const btn = e.target.closest('button[data-action]');
     if (!btn) return;
-    insertMarkdown(btn.dataset.action);
+    const action = btn.dataset.action;
+    if (specialActions[action]) {
+      specialActions[action]();
+      return;
+    }
+    insertMarkdown(action);
   });
 
   // ─── Keyboard shortcuts ───
@@ -169,6 +406,14 @@
         case 'e':
           e.preventDefault();
           insertMarkdown('inlinecode');
+          break;
+        case 'f':
+          e.preventDefault();
+          openFindPanel();
+          break;
+        case 'y':
+          e.preventDefault();
+          specialActions.redo();
           break;
       }
     }
@@ -208,18 +453,212 @@
     URL.revokeObjectURL(url);
   });
 
-  // ─── Dark / Light Mode ───
+  // ─── Copy Markdown ───
+  function copyMarkdown() {
+    navigator.clipboard.writeText(editor.value).then(function () {
+      btnCopy.classList.add('copied');
+      btnCopy.querySelector('.icon-copy').style.display = 'none';
+      btnCopy.querySelector('.icon-check').style.display = '';
+      setTimeout(function () {
+        btnCopy.classList.remove('copied');
+        btnCopy.querySelector('.icon-copy').style.display = '';
+        btnCopy.querySelector('.icon-check').style.display = 'none';
+      }, 1500);
+    });
+  }
+
+  // ─── Fullscreen ───
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(function () {});
+    } else {
+      document.exitFullscreen();
+    }
+  }
+
+  document.addEventListener('fullscreenchange', function () {
+    const isFs = !!document.fullscreenElement;
+    btnFullscreen.querySelector('.icon-expand').style.display = isFs ? 'none' : '';
+    btnFullscreen.querySelector('.icon-compress').style.display = isFs ? '' : 'none';
+  });
+
+  // ─── Find & Replace ───
+  let findMatches = [];
+  let findIndex = -1;
+
+  function openFindPanel() {
+    findPanel.classList.add('show');
+    const selected = editor.value.substring(editor.selectionStart, editor.selectionEnd);
+    if (selected) findInput.value = selected;
+    findInput.focus();
+    findInput.select();
+    runFind();
+  }
+
+  function closeFindPanel() {
+    findPanel.classList.remove('show');
+    findMatches = [];
+    findIndex = -1;
+  }
+
+  function runFind() {
+    const query = findInput.value;
+    findMatches = [];
+    if (query) {
+      const text = editor.value;
+      const lower = text.toLowerCase();
+      const needle = query.toLowerCase();
+      let pos = 0;
+      while (true) {
+        const idx = lower.indexOf(needle, pos);
+        if (idx === -1) break;
+        findMatches.push(idx);
+        pos = idx + needle.length;
+      }
+    }
+    findIndex = findMatches.length ? 0 : -1;
+    updateFindUI(true);
+  }
+
+  function updateFindUI(scrollTo) {
+    if (!findMatches.length) {
+      findCount.textContent = '0/0';
+      return;
+    }
+    findCount.textContent = (findIndex + 1) + '/' + findMatches.length;
+    if (scrollTo) selectMatch(findIndex);
+  }
+
+  function selectMatch(i) {
+    if (i < 0 || i >= findMatches.length) return;
+    const start = findMatches[i];
+    const len = findInput.value.length;
+    editor.focus();
+    editor.setSelectionRange(start, start + len);
+  }
+
+  function goToMatch(delta) {
+    if (!findMatches.length) return;
+    findIndex = (findIndex + delta + findMatches.length) % findMatches.length;
+    updateFindUI(true);
+  }
+
+  findInput.addEventListener('input', runFind);
+  findNext.addEventListener('click', function () { goToMatch(1); });
+  findPrev.addEventListener('click', function () { goToMatch(-1); });
+  findClose.addEventListener('click', closeFindPanel);
+
+  findInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      goToMatch(e.shiftKey ? -1 : 1);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      closeFindPanel();
+    }
+  });
+
+  replaceInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeFindPanel();
+    }
+  });
+
+  replaceOne.addEventListener('click', function () {
+    if (findIndex === -1 || !findMatches.length) return;
+    const start = findMatches[findIndex];
+    const len = findInput.value.length;
+    editor.setRangeText(replaceInput.value, start, start + len, 'end');
+    scheduleRender();
+    runFind();
+  });
+
+  replaceAllBtn.addEventListener('click', function () {
+    if (!findInput.value) return;
+    const query = findInput.value;
+    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(escaped, 'gi');
+    editor.value = editor.value.replace(re, replaceInput.value);
+    scheduleRender();
+    runFind();
+  });
+
+  // ─── More dropdown ───
+  // Positioned via JS (not CSS position:absolute) because #toolbar has
+  // overflow-y:hidden for horizontal scrolling, which would clip an
+  // absolutely-positioned dropdown anchored inside it.
+  function positionMoreDropdown() {
+    const rect = btnMore.getBoundingClientRect();
+    moreDropdown.style.top = (rect.bottom + 6) + 'px';
+    moreDropdown.style.right = (window.innerWidth - rect.right) + 'px';
+  }
+
+  btnMore.addEventListener('click', function (e) {
+    e.stopPropagation();
+    const willShow = !moreDropdown.classList.contains('show');
+    if (willShow) positionMoreDropdown();
+    moreDropdown.classList.toggle('show', willShow);
+    btnMore.classList.toggle('active', willShow);
+  });
+
+  window.addEventListener('resize', function () {
+    if (moreDropdown.classList.contains('show')) positionMoreDropdown();
+  });
+
+  moreDropdown.querySelectorAll('.dropdown-item[data-theme]').forEach(function (item) {
+    item.addEventListener('click', function () {
+      applyTheme(item.dataset.theme);
+      moreDropdown.classList.remove('show');
+      btnMore.classList.remove('active');
+    });
+  });
+
+  document.addEventListener('click', function (e) {
+    if (!moreDropdown.contains(e.target) && e.target !== btnMore) {
+      moreDropdown.classList.remove('show');
+      btnMore.classList.remove('active');
+    }
+  });
+
+  // ─── Help modal ───
+  function openHelp() {
+    moreDropdown.classList.remove('show');
+    btnMore.classList.remove('active');
+    helpOverlay.classList.add('show');
+  }
+
+  function closeHelp() {
+    helpOverlay.classList.remove('show');
+  }
+
+  btnHelp.addEventListener('click', openHelp);
+  helpClose.addEventListener('click', closeHelp);
+  helpOverlay.addEventListener('click', function (e) {
+    if (e.target === helpOverlay) closeHelp();
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      if (helpOverlay.classList.contains('show')) closeHelp();
+      else if (findPanel.classList.contains('show')) closeFindPanel();
+    }
+  });
+
+  // ─── Theme (Light / Dark / Dracula) ───
   function applyTheme(mode) {
     htmlEl.setAttribute('data-color-mode', mode);
 
-    const isLight = mode === 'light';
-
-    document.getElementById('github-md-light').disabled = !isLight;
-    document.getElementById('github-md-dark').disabled = isLight;
-    document.getElementById('hljs-light').disabled = !isLight;
-    document.getElementById('hljs-dark').disabled = isLight;
+    document.getElementById('github-md-light').disabled = mode !== 'light';
+    document.getElementById('github-md-dark').disabled = mode === 'light';
+    document.getElementById('hljs-light').disabled = mode !== 'light';
+    document.getElementById('hljs-dark').disabled = mode !== 'dark';
 
     localStorage.setItem('neiki-md-theme', mode);
+
+    moreDropdown.querySelectorAll('.dropdown-item[data-theme]').forEach(function (item) {
+      item.classList.toggle('active', item.dataset.theme === mode);
+    });
 
     // Re-render preview so code blocks pick up new theme
     renderPreview();

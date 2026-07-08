@@ -22,3 +22,6 @@ Desktop.ini
 # Misc
 .env
 .env.local
+
+# Reference folder
+ref/
