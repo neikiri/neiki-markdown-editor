@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="img/logo.png" alt="neiki-markdown-editor" width="620">
+  <img src="img/logo.svg" alt="neiki-markdown-editor" style="height: 90px; width: auto;">
 </p>
 
 <h1 align="center">Neiki's Markdown Editor</h1>
